@@ -4,6 +4,7 @@ import random
 import math
 import time
 import numpy
+frame_count = 0
 
 #MediaPipe初期化
 mp_pose = mp.solutions.pose
@@ -13,21 +14,21 @@ def calc_arm_angle(shoulder,elbow,wrist):
     v1 =(shoulder.x - elbow.x, shoulder.y -elbow.y) #肘から肩のベクトル
     v2 =(wrist.x - elbow.x, wrist.y -elbow.y) #肘から手首のベクトル
 
-    dot = v1[0]*v2[0] + v1[1]*v2[1]
+    dot = v1[0]*v2[0] + v1[1]*v2[1] #内積
     norm =  math.sqrt(v1[0]**2+v1[1]**2)* math.sqrt(v2[0]**2+v2[1]**2)
 
     cos_val =dot / norm
-    cos_val =min(1,cos_val)
-    cos_val =max(-1,cos_val)
-    rad =math.acos(cos_val)
-    angle =math.degrees(rad)
+    cos_val =min(1,cos_val) #上限を1に
+    cos_val =max(-1,cos_val) #下限を-1に
+    rad =math.acos(cos_val) #cosa->Arad
+    angle =math.degrees(rad) #Arad->αdegrees
     return int(angle)
 
 #カメラ起動
 cap = cv2.VideoCapture(0)
 
 with mp_pose.Pose(
-    min_detection_confidence=0.5, min_tracking_confidence=0.5
+    min_detection_confidence=0.5, min_tracking_confidence=0.5, model_complexity=0
 ) as pose:
     while cap.isOpened():
         ret, frame = cap.read() #ret=return
@@ -70,13 +71,13 @@ with mp_pose.Pose(
                                 cv2.FONT_HERSHEY_SIMPLEX,
                                 1,(255,0,0),2) #blue
             
-            #FIRE
+                #FIRE
                 elif r_angle >150 and abs(r_wrist.y - r_shoulder.y) < 0.1:
                     cv2.putText(frame,"FIRE!",
                                 (10,100),
                                 cv2.FONT_HERSHEY_SIMPLEX,
                                 1,(0,0,255),2) #red
-
+            
                 #画面に角度表示
                 cv2.putText(
                     frame, f"Angle:{r_angle}",
@@ -90,12 +91,23 @@ with mp_pose.Pose(
                     mp_pose.POSE_CONNECTIONS
                 )
 
+                #デバッグ用座標表示
+                frame_count += 1
+                if frame_count % 30 == 0:
+                    print(f"W_y:{r_wrist.y:.2f} S_y:{r_shoulder.y:.2f} Diff:{abs(r_wrist.y - r_shoulder.y):.2f}")
+            
+            else: #mediapipeが動作していないときREADY
+                cv2.putText(frame,"READY",
+                (10, 100),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1, (200, 200, 200), 2)
+                
             #画面表示
-            cv2.imshow("Game", frame)
+        cv2.imshow("Game", frame)
 
-            #q end
-            if cv2.waitKey(5) & 0xFF == ord("q"): #ord= str->int
-                break
+        #q end
+        if cv2.waitKey(5) & 0xFF == ord("q"): #ord= str->int
+            break
 
 cap.release()
 cv2.destroyAllWindows()
