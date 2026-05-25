@@ -63,45 +63,51 @@ with mp_pose.Pose(
                 #角度計算
                 r_angle =calc_arm_angle(r_shoulder,r_elbow,r_wrist)
 
-                if game_state =="WAITING":
-                wait_duration = random.uniform(3, 6)
-                waiting_start = time.time()
-                elapsed =time.time() -waiting_start
-                print(f"待機時間:{elapsed:.2f}")
-                if elapsed >=wait_duration:
-                    game_state ="SIGNAL"
-                    signal_time =time.time()
-                    cv2.putText(frame,"!",
-                    (280, 240),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    5, (0, 0, 255), 5)
-                    if game_state =="FIRE!":
-                        reaction_time =time.time() - signal_time
-                        print(f"反応時間:{reaction_time:.2f}")
+                arm_down=r_angle >150 and r_wrist.y >r_shoulder.y
+                arm_fire=r_angle >150 and abs(r_wrist.y - r_shoulder.y) < 0.1
                 
                 #発砲か待機かそれ以外か
                 #READY
-                if r_angle <=150:
+                if game_state =="READY":
                     cv2.putText(frame, "READY",
                                 (10,100),
                                 cv2.FONT_HERSHEY_SIMPLEX,
-                                1,(200,200,200),2) #gray
+                                1,(200,200,200),2)
+                    if arm_down:
+                        game_state ="WAITING"
+                        wait_duration = random.uniform(3, 6)
+                        waiting_start = time.time() #gray
             
                 #WAITING
-                elif r_angle >150 and r_wrist.y >r_shoulder.y:
+                elif game_state =="WAITING":
                     cv2.putText(frame,"WAITING",
                                 (10,100),
                                 cv2.FONT_HERSHEY_SIMPLEX,
                                 1,(255,0,0),2) #blue
-                    game_state ="WAITING"
-            
+                    if not arm_down: #if arm up->return READY
+                        game_state ="READY"
+                    elapsed =time.time() -waiting_start
+                    print(f"待機時間:{elapsed:.2f}")
+                    if elapsed >=wait_duration:
+                        game_state ="SIGNAL"
+                        signal_time =time.time()
+
                 #FIRE
-                elif r_angle >150 and abs(r_wrist.y - r_shoulder.y) < 0.1:
-                    cv2.putText(frame,"FIRE!",
-                                (10,100),
-                                cv2.FONT_HERSHEY_SIMPLEX,
-                                1,(0,0,255),2) #red
-                    game_state ="FIRE!"
+                elif game_state =="SIGNAL":
+                    cv2.putText(frame,"!",
+                    (280, 240),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    5, (0, 0, 255), 5)
+                    if arm_fire:
+                        reaction_time =time.time() - signal_time
+                        print(f"反応時間:{reaction_time:.2f}")
+                        game_state ="RESULT"
+
+                elif game_state =="RESULT":
+                    cv2.putText(frame,f"Time:{reaction_time:.2f}",
+                    (10, 100),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1, (255, 255, 0), 2)
             
                 #画面に角度表示
                 cv2.putText(
@@ -109,7 +115,7 @@ with mp_pose.Pose(
                     (10,50),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     1,(0,255,0),2)
-        
+
                 mp_drawing.draw_landmarks(
                     frame,
                     results.pose_landmarks,
