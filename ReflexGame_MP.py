@@ -4,6 +4,8 @@ import random
 import math
 import time
 import numpy as np
+import socket
+import json
 
 #定義
 frame_count =0
@@ -12,11 +14,39 @@ waiting_start =None
 signal_time =None
 reaction_time =None
 wait_duration =0
+UNITY_HOST = "127.0.0.1"
+UNITY_PORT = 5006
+udp_socket = None
 
 #MediaPipe初期化
 mp_pose =mp.solutions.pose
 mp_drawing =mp.solutions.drawing_utils
 
+#UDPsocket初期化
+def init_udp_communication():
+    global udp_socket
+    try:
+        udp_socket =socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        print(f"UDP通信を初期化しました ({UNITY_HOST}:{UNITY_PORT})")
+        return True
+    except Exception as e:
+        print(f"UDP初期化失敗: {e}")
+        return False
+
+#メッセージ送信関数
+def send_to_unity_udp(message):
+    global udp_socket
+    if not udp_socket:
+        return False
+    
+    try:
+        json_message = json.dumps(message)
+        udp_socket.sendto(json_message.encode('utf-8'), (UNITY_HOST, UNITY_PORT))
+        return True
+    except Exception as e:
+        print(f"UDP送信エラー: {e}")
+        return False
+    
 def calc_arm_angle(shoulder,elbow,wrist):
     v1 =(shoulder.x - elbow.x, shoulder.y -elbow.y) #肘から肩のベクトル
     v2 =(wrist.x - elbow.x, wrist.y -elbow.y) #肘から手首のベクトル
@@ -32,6 +62,7 @@ def calc_arm_angle(shoulder,elbow,wrist):
     return int(angle)
 
 #カメラ起動
+init_udp_communication()
 cap =cv2.VideoCapture(0)
 
 with mp_pose.Pose(
@@ -121,6 +152,12 @@ with mp_pose.Pose(
                     results.pose_landmarks,
                     mp_pose.POSE_CONNECTIONS
                 )
+                send_to_unity_udp({
+                    "type": "game_state",
+                    "state": game_state,
+                    "reaction_time": reaction_time if reaction_time else 0,
+                    "timestamp": time.time()
+                })
 
                 #デバッグ用座標表示
                 #frame_count +=1
@@ -140,5 +177,8 @@ with mp_pose.Pose(
         if cv2.waitKey(5) & 0xFF ==ord("q"): #ord= str->int
             break
 
+# リソースの解放
+if udp_socket:
+    udp_socket.close()
 cap.release()
 cv2.destroyAllWindows()
