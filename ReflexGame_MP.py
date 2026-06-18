@@ -74,7 +74,7 @@ with mp_pose.Pose(
             break
         
         #MediaPipe処理
-        rgb =cv2.cvtColor(frame, cv2.COLOR_BGRA2RGB)
+        rgb =cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results =pose.process(rgb)
         rgb =cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
 
