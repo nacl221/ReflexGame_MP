@@ -10,7 +10,7 @@ public class CanAddForce : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         Vector3 force = new Vector3(0.0f, 3.0f, 3.0f);
         rb.AddForce(force, ForceMode.Impulse);
-        rb.AddTorque(Vector3.up * 100f, ForceMode.Impulse);
+        rb.AddTorque(Vector3.left * 100f, ForceMode.Impulse);
     }
 
     // Update is called once per frame
